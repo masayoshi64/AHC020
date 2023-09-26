@@ -201,9 +201,125 @@ struct Graph
 const long double eps = 0.000000000000001;
 const long double PI = 3.141592653589793;
 
+
+/**
+ * @brief UnionFind
+ * @docs docs/UnionFind.md
+ */
+struct UnionFind {
+    vector<int> data;  // sizes of sets
+
+    UnionFind(int sz) : data(sz, -1) {}
+
+    bool unite(int x, int y) {
+        x = find(x), y = find(y);
+        if (x == y) return false;
+        if (data[x] > data[y]) swap(x, y);
+        data[x] += data[y];
+        data[y] = x;
+        return true;
+    }
+
+    int find(int k) {
+        if (data[k] < 0) return k;
+        return data[k] = find(data[k]);
+    }
+
+    int size(int k) { return (-data[find(k)]); }
+
+    bool same(int x, int y) { return find(x) == find(y); }
+};
+
+ll N, M, K;
+vl x, y, u, v, w, a, b;
+
+void input(){
+    cin >> N >> M >> K;
+    x.resize(N), y.resize(N);
+    u.resize(M), v.resize(M), w.resize(M);
+    a.resize(K), b.resize(K);
+    rep(i, N) cin >> x[i] >> y[i];
+    rep(i, M) {
+        cin >> u[i] >> v[i] >> w[i];
+        u[i]--, v[i]--;
+    }
+    rep(i, K) cin >> a[i] >> b[i];
+}
+
+ll calc_score(vl P, vl B){
+    ll S = 0;
+    rep(i, N){
+        S += P[i] * P[i];
+    }
+    rep(i, M){
+        S += B[i] * w[i];
+    }
+    return 1e6 * (1 + 1e8 / (S + 1e7));
+}
+
+void output(vl P, vl B){
+    rep(i, N) cout << P[i] << ' ';
+    cout << endl;
+    rep(i, M) cout << B[i] << ' ';
+    cout << endl;
+    cerr << "Score = " << calc_score(P, B) << endl;
+}
+
+vl spanning_tree(vl V){
+    vi id = IOTA(w);
+    UnionFind uf(N);
+    vl B(M, 0);
+    for(int i: id){
+        if(V[u[i]] == 1 && V[v[i]] == 1 && uf.unite(u[i], v[i])){
+            B[i] = 1;
+        }
+    }
+    return B;
+}
+
+ll ll_sqrt(ll val){
+    ll ok = 1e5, ng = 0;
+    while(ok - ng > 1){
+        ll mid = (ok + ng) / 2;
+        if(mid * mid >= val){
+            ok = mid;
+        }else{
+            ng = mid;
+        }
+    }
+    return ok;
+}
+
+ll dist(ll i, ll j){
+    ll dist2 = (a[i] - x[j]) * (a[i] - x[j]) + (b[i] - y[j]) * (b[i] - y[j]);
+    return ll_sqrt(dist2);
+}
+
+vl assign_greedy(vl V){
+    vl P(N);
+    rep(i, K){
+        ll min_dist = inf, min_station = -1;
+        rep(j, N){
+            if(chmin(min_dist, dist(i, j))) min_station = j;
+        }
+        chmax(P[min_station], min_dist);
+    }
+    return P;
+}
+
+void solve_use_all(){
+    vl V(N, 1);
+    vl P = assign_greedy(V);
+    vl B = spanning_tree(V);
+    output(P, B);
+}
+
+
 int main(int argc, char *argv[]) {
     cin.tie(0);
     ios::sync_with_stdio(0);
     cout << setprecision(30) << fixed;
     cerr << setprecision(30) << fixed;
+    input();
+    solve_use_all();
 }
