@@ -230,6 +230,52 @@ struct UnionFind {
     bool same(int x, int y) { return find(x) == find(y); }
 };
 
+/**
+ * @brief start_temp: 一回の遷移で動きうるスコア幅の最大値程度, end_temp: 一回の遷移で動きうるスコア幅の最小値程度
+ */
+
+template<typename State, typename Action>
+State simulated_annealing(State state, double start_temp, double end_temp, double time_limit) {
+    Timer timer;
+    timer.start();
+    rep(t, 1e9) {
+        double time = timer.lap();
+        double temp = start_temp + (end_temp - start_temp) * time / time_limit;
+        if(time > time_limit) break;
+
+        double score = state.score;
+        Action action = state.generate_action();
+        Action rollback_action = state.step(action);
+        double new_score = state.score;
+        double prob = exp((new_score - score) / temp);
+        if (prob < (double) xor64(10000000) / 10000000) {
+            state.rollback(rollback_action);
+        }
+        if(t % 100 == 0) cerr << t << ": " << state.score << endl;
+    }
+    return state;
+}
+
+template<typename State, typename Action>
+State hill_climbing(State state, double time_limit){
+    Timer timer;
+    timer.start();
+    rep(t, 1e9) {
+        double time = timer.lap();
+        if(time > time_limit) break;
+
+        double score = state.score;
+        Action action = state.generate_action();
+        Action rollback_action = state.step(action);
+        double new_score = state.score;
+        if (new_score < score) {
+            state.rollback(rollback_action);
+        }
+        if(t % 100 == 0) cerr << t << ": " << state.score << endl;
+    }
+    return state;
+}
+
 ll N, M, K;
 vl x, y, u, v, w, a, b;
 
@@ -265,7 +311,7 @@ void output(vl P, vl B){
     cerr << "Score = " << calc_score(P, B) << endl;
 }
 
-vl spanning_tree(vl V){
+pair<bool, vl> spanning_tree(vl V){
     vi id = IOTA(w);
     UnionFind uf(N);
     vl B(M, 0);
@@ -274,7 +320,16 @@ vl spanning_tree(vl V){
             B[i] = 1;
         }
     }
-    return B;
+
+    vl stations;
+    bool connected = true;
+    rep(i, N){
+        if(V[i] == 1) stations.pb(i);
+    }
+    for(int id: stations){
+        if(!uf.same(id, stations[0])) connected = false;
+    }
+    return {connected, B};
 }
 
 ll ll_sqrt(ll val){
@@ -307,10 +362,52 @@ vl assign_greedy(vl V){
     return P;
 }
 
+struct Action{
+    ll id, score;
+};
+
+struct State{
+    ll score;
+    vl V;
+    State(): V(N, 1){
+        auto [connected, B] = spanning_tree(V);
+        vl P = assign_greedy(V);
+        score = calc_score(P, B);
+    }
+    Action generate_action(){
+        return {xor64(N), 0};
+    }
+    Action step(Action action){
+        V[action.id] ^= 1;
+        action.score = score;
+        auto [connected, B] = spanning_tree(V);
+        if(connected){
+            vl P = assign_greedy(V);
+            score = calc_score(P, B);
+        }else{
+            score = -inf;
+        }
+        return action;
+    }   
+    void rollback(Action action){
+        V[action.id] ^= 1;
+        score = action.score;
+    }
+};
+
 void solve_use_all(){
     vl V(N, 1);
     vl P = assign_greedy(V);
-    vl B = spanning_tree(V);
+    auto [connected, B] = spanning_tree(V);
+    cerr << connected << endl;
+    output(P, B);
+}
+
+void solve_hill_climbing(){
+    State state;
+    state = hill_climbing<State, Action>(state, 1800);
+    vl P = assign_greedy(state.V);
+    auto [connected, B] = spanning_tree(state.V);
     output(P, B);
 }
 
@@ -321,5 +418,6 @@ int main(int argc, char *argv[]) {
     cout << setprecision(30) << fixed;
     cerr << setprecision(30) << fixed;
     input();
-    solve_use_all();
+    // solve_use_all();
+    solve_hill_climbing();
 }
