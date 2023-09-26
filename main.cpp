@@ -446,6 +446,7 @@ void solve_use_all(){
 void solve_hill_climbing(){
     State state;
     state = hill_climbing<State, Action>(state, 1800);
+    // state = simulated_annealing<State, Action>(state, 1000, 100, 1800);
     auto[assignment, P] = assign_greedy(state.V);
     auto [connected, B] = spanning_tree(state.V);
     output(P, B);
