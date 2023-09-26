@@ -354,11 +354,13 @@ pair<mat<ll>, vl> assign_greedy(vl V){
     vl P(N);
     mat<ll> assignment(N);
     rep(i, K){
-        ll min_dist = inf, min_station = -1;
+        ll min_cost = inf, min_station = -1;
         rep(j, N){
-            if(V[j] == 1 && chmin(min_dist, dist(i, j))) min_station = j;
+            ll d = dist(i, j);
+            ll cost = max(0ll, d * d - P[j] * P[j]); 
+            if(V[j] == 1 && chmin(min_cost, cost)) min_station = j;
         }
-        chmax(P[min_station], min_dist);
+        chmax(P[min_station], dist(i, min_station));
         assignment[min_station].pb(i);
     }
     return {assignment, P};
