@@ -245,11 +245,11 @@ State simulated_annealing(State state, double start_temp, double end_temp, doubl
 
         double score = state.score;
         Action action = state.generate_action();
-        Action rollback_action = state.step(action);
+        state.step(action);
         double new_score = state.score;
         double prob = exp((new_score - score) / temp);
         if (prob < (double) xor64(10000000) / 10000000) {
-            state.rollback(rollback_action);
+            state.rollback();
         }
         if(t % 100 == 0) cerr << t << ": " << state.score << endl;
     }
@@ -266,10 +266,10 @@ State hill_climbing(State state, double time_limit){
 
         double score = state.score;
         Action action = state.generate_action();
-        Action rollback_action = state.step(action);
+        state.step(action);
         double new_score = state.score;
         if (new_score < score) {
-            state.rollback(rollback_action);
+            state.rollback();
         }
         if(t % 100 == 0) cerr << t << ": " << state.score << endl;
     }
@@ -365,24 +365,28 @@ pair<mat<ll>, vl> assign_greedy(vl V){
 }
 
 struct Action{
-    ll id, score;
-    vl P;
-    mat<ll> assignment;
-    Action(ll id): id(id){}
+    ll id;
 };
 
 struct State{
     ll score;
-    vl V, P;
+    ll score_rollback;
+    vl V, P, B;
+    vl V_rollback, P_rollback, B_rollback;
     mat<ll> assignment;
+    mat<ll> assignment_rollback;
+
     State(): V(N, 1){
-        auto [connected, B] = spanning_tree(V);
+        bool connected;
+        tie(connected, B) = spanning_tree(V);
         tie(assignment, P) = assign_greedy(V);
         score = calc_score(P, B);
     }
+
     Action generate_action(){
         return {xor64(N - 1) + 1};
     }
+
     void update_assignment(Action action){
         if(V[action.id] == 0){
             for(ll i: assignment[action.id]){
@@ -416,24 +420,27 @@ struct State{
             }
         }
     }
-    Action step(Action action){
-        action.score = score;
-        action.P = P, action.assignment = assignment;
+
+    void step(Action action){
+        V_rollback = V, P_rollback = P, B_rollback = B;
+        score_rollback = score;
+        assignment_rollback = assignment;
 
         V[action.id] ^= 1;
-        auto [connected, B] = spanning_tree(V);
+        bool connected;
+        tie(connected, B) = spanning_tree(V);
         if(connected){
             update_assignment(action);
             score = calc_score(P, B);
         }else{
             score = -inf;
         }
-        return action;
     } 
-    void rollback(Action action){
-        P = action.P, assignment = action.assignment;
-        score = action.score;
-        V[action.id] ^= 1;
+
+    void rollback(){
+        V = V_rollback, P = P_rollback, B = B_rollback;
+        score = score_rollback;
+        assignment = assignment_rollback;
     }
 };
 
