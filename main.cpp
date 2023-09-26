@@ -350,54 +350,94 @@ ll dist(ll i, ll j){
     return ll_sqrt(dist2);
 }
 
-vl assign_greedy(vl V){
+pair<mat<ll>, vl> assign_greedy(vl V){
     vl P(N);
+    mat<ll> assignment(N);
     rep(i, K){
         ll min_dist = inf, min_station = -1;
         rep(j, N){
-            if(chmin(min_dist, dist(i, j))) min_station = j;
+            if(V[j] == 1 && chmin(min_dist, dist(i, j))) min_station = j;
         }
         chmax(P[min_station], min_dist);
+        assignment[min_station].pb(i);
     }
-    return P;
+    return {assignment, P};
 }
 
 struct Action{
     ll id, score;
+    vl P;
+    mat<ll> assignment;
+    Action(ll id): id(id){}
 };
 
 struct State{
     ll score;
-    vl V;
+    vl V, P;
+    mat<ll> assignment;
     State(): V(N, 1){
         auto [connected, B] = spanning_tree(V);
-        vl P = assign_greedy(V);
+        tie(assignment, P) = assign_greedy(V);
         score = calc_score(P, B);
     }
     Action generate_action(){
-        return {xor64(N), 0};
+        return {xor64(N - 1) + 1};
+    }
+    void update_assignment(Action action){
+        if(V[action.id] == 0){
+            for(ll i: assignment[action.id]){
+                ll min_dist = inf, min_station = -1;
+                rep(j, N){
+                    if(V[j] == 1 && chmin(min_dist, dist(i, j))) min_station = j;
+                }
+                assignment[min_station].pb(i);
+                chmax(P[min_station], min_dist);
+            }
+            assignment[action.id].clear();
+            P[action.id] = 0;
+        }else{
+            rep(j, N){
+                vl tmp;
+                P[j] = 0;
+                for(ll i: assignment[j]){
+                    ll d = dist(i, j);
+                    ll new_d = dist(i, action.id);
+                    if(new_d < d){
+                        assignment[action.id].pb(i);
+                        chmax(P[action.id], new_d);
+                    }else{
+                        tmp.pb(i);
+                        chmax(P[j], d);
+                    }
+                }
+                assignment[j] = tmp;
+            }
+        }
     }
     Action step(Action action){
-        V[action.id] ^= 1;
         action.score = score;
+        action.P = P, action.assignment = assignment;
+
+        V[action.id] ^= 1;
         auto [connected, B] = spanning_tree(V);
         if(connected){
-            vl P = assign_greedy(V);
+            update_assignment(action);
             score = calc_score(P, B);
         }else{
             score = -inf;
         }
         return action;
-    }   
+    } 
     void rollback(Action action){
-        V[action.id] ^= 1;
+        P = action.P, assignment = action.assignment;
         score = action.score;
+        V[action.id] ^= 1;
     }
 };
 
 void solve_use_all(){
     vl V(N, 1);
-    vl P = assign_greedy(V);
+    auto[assignment, P] = assign_greedy(V);
     auto [connected, B] = spanning_tree(V);
     cerr << connected << endl;
     output(P, B);
@@ -406,7 +446,7 @@ void solve_use_all(){
 void solve_hill_climbing(){
     State state;
     state = hill_climbing<State, Action>(state, 1800);
-    vl P = assign_greedy(state.V);
+    auto[assignment, P] = assign_greedy(state.V);
     auto [connected, B] = spanning_tree(state.V);
     output(P, B);
 }
