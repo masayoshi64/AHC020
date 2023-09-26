@@ -386,31 +386,33 @@ struct State{
     void update_assignment(Action action){
         if(V[action.id] == 0){
             for(ll i: assignment[action.id]){
-                ll min_dist = inf, min_station = -1;
+                ll min_cost = inf, min_station = -1;
                 rep(j, N){
-                    if(V[j] == 1 && chmin(min_dist, dist(i, j))) min_station = j;
+                    ll d = dist(i, j);
+                    ll cost = max(0ll, d * d - P[j] * P[j]); 
+                    if(V[j] == 1 && chmin(min_cost, cost)) min_station = j;
                 }
                 assignment[min_station].pb(i);
-                chmax(P[min_station], min_dist);
+                chmax(P[min_station], dist(i, min_station));
             }
             assignment[action.id].clear();
             P[action.id] = 0;
         }else{
             rep(j, N){
                 vl tmp;
-                P[j] = 0;
                 for(ll i: assignment[j]){
                     ll d = dist(i, j);
                     ll new_d = dist(i, action.id);
-                    if(new_d < d){
+                    if(new_d < d && P[j] == d){
                         assignment[action.id].pb(i);
                         chmax(P[action.id], new_d);
                     }else{
                         tmp.pb(i);
-                        chmax(P[j], d);
                     }
                 }
+                P[j] = 0;
                 assignment[j] = tmp;
+                for(ll i: assignment[j]) chmax(P[j], dist(i, j));
             }
         }
     }
@@ -449,7 +451,7 @@ void solve_hill_climbing(){
     // state = simulated_annealing<State, Action>(state, 1000, 100, 1800);
     auto[assignment, P] = assign_greedy(state.V);
     auto [connected, B] = spanning_tree(state.V);
-    output(P, B);
+    output(state.P, B);
 }
 
 
