@@ -276,6 +276,7 @@ State hill_climbing(State state, double time_limit){
     return state;
 }
 
+const ll max_P = 5000;
 ll N, M, K;
 vl x, y, u, v, w, a, b;
 
@@ -358,10 +359,12 @@ pair<mat<ll>, vl> assign_greedy(vl V){
         rep(j, N){
             ll d = dist(i, j);
             ll cost = max(0ll, d * d - P[j] * P[j]); 
-            if(V[j] == 1 && chmin(min_cost, cost)) min_station = j;
+            if(d <= max_P && V[j] == 1 && chmin(min_cost, cost)) min_station = j;
         }
-        chmax(P[min_station], dist(i, min_station));
-        assignment[min_station].pb(i);
+        if(min_station != -1){
+            chmax(P[min_station], dist(i, min_station));
+            assignment[min_station].pb(i);
+        }
     }
     return {assignment, P};
 }
@@ -371,6 +374,7 @@ struct Action{
 };
 
 struct State{
+    bool valid;
     ll score;
     ll score_rollback;
     vl V, P, B;
@@ -379,6 +383,7 @@ struct State{
     mat<ll> assignment_rollback;
 
     State(): V(N, 1){
+        valid = true;
         bool connected;
         tie(connected, B) = spanning_tree(V);
         tie(assignment, P) = assign_greedy(V);
@@ -396,10 +401,15 @@ struct State{
                 rep(j, N){
                     ll d = dist(i, j);
                     ll cost = max(0ll, d * d - P[j] * P[j]); 
-                    if(V[j] == 1 && chmin(min_cost, cost)) min_station = j;
+                    if(d <= max_P && V[j] == 1 && chmin(min_cost, cost)) min_station = j;
                 }
-                assignment[min_station].pb(i);
-                chmax(P[min_station], dist(i, min_station));
+                if(min_station == -1){
+                    valid = false;
+                    return;
+                }else{
+                    assignment[min_station].pb(i);
+                    chmax(P[min_station], dist(i, min_station));    
+                }
             }
             assignment[action.id].clear();
             P[action.id] = 0;
@@ -431,7 +441,8 @@ struct State{
         V[action.id] ^= 1;
         bool connected;
         tie(connected, B) = spanning_tree(V);
-        if(connected){
+        if(!connected) valid = false;
+        if(valid){
             update_assignment(action);
             score = calc_score(P, B);
         }else{
@@ -440,6 +451,7 @@ struct State{
     } 
 
     void rollback(){
+        valid = true;
         V = V_rollback, P = P_rollback, B = B_rollback;
         score = score_rollback;
         assignment = assignment_rollback;
@@ -456,8 +468,8 @@ void solve_use_all(){
 
 void solve_hill_climbing(){
     State state;
-    state = hill_climbing<State, Action>(state, 1800);
-    // state = simulated_annealing<State, Action>(state, 1000, 100, 1800);
+    // state = hill_climbing<State, Action>(state, 1800);
+    state = simulated_annealing<State, Action>(state, 1000, 100, 1800);
     auto[assignment, P] = assign_greedy(state.V);
     auto [connected, B] = spanning_tree(state.V);
     output(state.P, B);
