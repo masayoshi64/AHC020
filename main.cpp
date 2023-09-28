@@ -283,7 +283,7 @@ State hill_climbing(State state, double time_limit, bool minimize=false){
 const ll max_P = 5000;
 ll N, M, K;
 vl x, y, u, v, w, a, b;
-mat<ll> dist;
+mat<ll> dist, sorted_by_dist;
 
 ll ll_sqrt(ll val){
     ll ok = 1e5, ng = 0;
@@ -317,6 +317,16 @@ void input(){
     dist.resize(K, vl(N));
     rep(i, K)rep(j, N){
         dist[i][j] = calc_dist(i, j);
+    }
+    sorted_by_dist.resize(N);
+    rep(i, N){
+        vl dist_from_i(K);
+        rep(j, K){
+            dist_from_i[j] = dist[j][i];
+        }
+        for(ll j: IOTA(dist_from_i)){
+            sorted_by_dist[i].pb(j);
+        }
     }
 }
 
@@ -361,7 +371,7 @@ pair<bool, vl> spanning_tree(vl V){
         if(V[i] == 1) stations.pb(i);
     }
     for(int id: stations){
-        if(!uf.same(id, stations[0])) connected = false;
+        if(!uf.same(0, id)) connected = false;
     }
     return {connected, B};
 }
@@ -480,7 +490,7 @@ struct Action_P{
 struct State_P{
     ll max_diff = 100;
     ll score = 0;
-    vl V, B, P;
+    vl V, B, P, cnt;
 
     // for rollback
     ll id, val, pre_score;
@@ -491,6 +501,10 @@ struct State_P{
         rep(i, N)V[i] = 1;
         mat<ll> assignment;
         tie(assignment, P) = assign_greedy(V);
+        cnt.resize(K);
+        rep(i, K) rep(j, N){
+            if(dist[i][j] <= P[j]) cnt[i]++;
+        }
         bool connected;
         tie(connected, B) = spanning_tree(V);
         rep(i, N){
@@ -503,7 +517,7 @@ struct State_P{
     Action_P generate_action(){
         return {xor64(N), xor64(max_diff * 2) - max_diff};
     }
-    bool is_covered(){
+    bool is_covered2(ll p, ll p_pre){
         rep(i, K){
             bool covered = false;
             rep(j, N){
@@ -513,6 +527,22 @@ struct State_P{
         }
         return true;
     }   
+
+    bool is_covered(ll p, ll p_pre){
+        bool covered = true;
+        rep(i, K){
+            int r_id = sorted_by_dist[id][i];
+            if(dist[r_id][id] > p && dist[r_id][id] <= p_pre){
+                cnt[r_id]--;
+            }
+            if(dist[r_id][id] <= p && dist[r_id][id] > p_pre){
+                cnt[r_id]++;
+            }
+            if(cnt[r_id] == 0) covered = false;         
+        }
+        return covered;
+    }   
+
     void step(Action_P action){
         // 保存
         id = action.id;
@@ -522,19 +552,21 @@ struct State_P{
         // 状態を変更
         P[id] += action.diff;
         chmax(P[id], 0ll), chmin(P[id], max_P);
-        if(id != 0 && ((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
-            V[id] ^= 1;
+        if(P[id] == 0) V[id] = 0;
+        else V[id] = 1;
+        bool covered = is_covered(P[id], val);
+        if(((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
             bool connected;
             swap(B, B_rollback);
             tie(connected, B) = spanning_tree(V);
-            if(connected && is_covered()){
+            if(connected && covered){
                 score = calc_cost(P, B);
             }else{
                 score = INF;
             }
         }else{
             // スコアの更新
-            if(is_covered()){
+            if(covered){
                 score += P[id] * P[id] - val * val;
             }else{
                 score = INF;
@@ -542,8 +574,10 @@ struct State_P{
         }
     }
     void rollback(){
-        if(id != 0 && ((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
-            V[id] ^= 1;
+        if(val == 0) V[id] = 0;
+        else V[id] = 1;
+        bool covered = is_covered(val, P[id]);
+        if(((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
             swap(B, B_rollback);
         }
         P[id] = val;
