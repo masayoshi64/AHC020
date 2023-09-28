@@ -279,6 +279,25 @@ State hill_climbing(State state, double time_limit){
 const ll max_P = 5000;
 ll N, M, K;
 vl x, y, u, v, w, a, b;
+mat<ll> dist;
+
+ll ll_sqrt(ll val){
+    ll ok = 1e5, ng = 0;
+    while(ok - ng > 1){
+        ll mid = (ok + ng) / 2;
+        if(mid * mid >= val){
+            ok = mid;
+        }else{
+            ng = mid;
+        }
+    }
+    return ok;
+}
+
+ll calc_dist(ll i, ll j){
+    ll dist2 = (a[i] - x[j]) * (a[i] - x[j]) + (b[i] - y[j]) * (b[i] - y[j]);
+    return ll_sqrt(dist2);
+}
 
 void input(){
     cin >> N >> M >> K;
@@ -291,6 +310,10 @@ void input(){
         u[i]--, v[i]--;
     }
     rep(i, K) cin >> a[i] >> b[i];
+    dist.resize(K, vl(N));
+    rep(i, K)rep(j, N){
+        dist[i][j] = calc_dist(i, j);
+    }
 }
 
 ll calc_score(vl P, vl B){
@@ -333,36 +356,18 @@ pair<bool, vl> spanning_tree(vl V){
     return {connected, B};
 }
 
-ll ll_sqrt(ll val){
-    ll ok = 1e5, ng = 0;
-    while(ok - ng > 1){
-        ll mid = (ok + ng) / 2;
-        if(mid * mid >= val){
-            ok = mid;
-        }else{
-            ng = mid;
-        }
-    }
-    return ok;
-}
-
-ll dist(ll i, ll j){
-    ll dist2 = (a[i] - x[j]) * (a[i] - x[j]) + (b[i] - y[j]) * (b[i] - y[j]);
-    return ll_sqrt(dist2);
-}
-
 pair<mat<ll>, vl> assign_greedy(vl V){
     vl P(N);
     mat<ll> assignment(N);
     rep(i, K){
         ll min_cost = inf, min_station = -1;
         rep(j, N){
-            ll d = dist(i, j);
+            ll d = dist[i][j];
             ll cost = max(0ll, d * d - P[j] * P[j]); 
             if(d <= max_P && V[j] == 1 && chmin(min_cost, cost)) min_station = j;
         }
         if(min_station != -1){
-            chmax(P[min_station], dist(i, min_station));
+            chmax(P[min_station], dist[i][min_station]);
             assignment[min_station].pb(i);
         }
     }
@@ -399,7 +404,7 @@ struct State{
             for(ll i: assignment[action.id]){
                 ll min_cost = inf, min_station = -1;
                 rep(j, N){
-                    ll d = dist(i, j);
+                    ll d = dist[i][j];
                     ll cost = max(0ll, d * d - P[j] * P[j]); 
                     if(d <= max_P && V[j] == 1 && chmin(min_cost, cost)) min_station = j;
                 }
@@ -408,7 +413,7 @@ struct State{
                     return;
                 }else{
                     assignment[min_station].pb(i);
-                    chmax(P[min_station], dist(i, min_station));    
+                    chmax(P[min_station], dist[i][min_station]);    
                 }
             }
             assignment[action.id].clear();
@@ -417,8 +422,8 @@ struct State{
             rep(j, N){
                 vl tmp;
                 for(ll i: assignment[j]){
-                    ll d = dist(i, j);
-                    ll new_d = dist(i, action.id);
+                    ll d = dist[i][j];
+                    ll new_d = dist[i][action.id];
                     if(new_d < d && P[j] == d){
                         assignment[action.id].pb(i);
                         chmax(P[action.id], new_d);
@@ -428,7 +433,7 @@ struct State{
                 }
                 P[j] = 0;
                 assignment[j] = tmp;
-                for(ll i: assignment[j]) chmax(P[j], dist(i, j));
+                for(ll i: assignment[j]) chmax(P[j], dist[i][j]);
             }
         }
     }
@@ -458,6 +463,69 @@ struct State{
     }
 };
 
+struct Action_P{
+    ll id, diff;
+};
+
+struct State_P{
+    ll max_diff = 50;
+    ll score = 0;
+    vl V, B, P;
+    mat<ll> covering;
+
+    // for rollback
+    ll id, val, pre_score;
+
+    State_P(){
+        V.resize(N);
+        rep(i, N)V[i] = 1;
+        mat<ll> assignment;
+        tie(assignment, P) = assign_greedy(V);
+        bool connected;
+        tie(connected, B) = spanning_tree(V);
+        rep(i, N){
+            score -= P[i] * P[i];
+        }
+        rep(i, M){
+            score -= B[i] * w[i];
+        }
+    }
+    Action_P generate_action(){
+        return {xor64(N), xor64(max_diff * 2) - max_diff};
+    }
+    bool is_covered(){
+        rep(i, K){
+            bool covered = false;
+            rep(j, N){
+                if(dist[i][j] <= P[j]) covered = true;
+            }
+            if(!covered) return false;
+        }
+        return true;
+    }   
+    void step(Action_P action){
+        // 保存
+        id = action.id;
+        val = P[id];
+        pre_score = score;
+
+        // 状態を変更
+        P[id] += action.diff;
+        chmax(P[id], 0ll), chmin(P[id], max_P);
+
+        // スコアの更新
+        if(is_covered()){
+            score -= P[id] * P[id] - val * val;
+        }else{
+            score = -INF;
+        }
+    }
+    void rollback(){
+        P[id] = val;
+        score = pre_score;
+    }
+};
+
 void solve_use_all(){
     vl V(N, 1);
     auto[assignment, P] = assign_greedy(V);
@@ -475,6 +543,12 @@ void solve_hill_climbing(){
     output(state.P, B);
 }
 
+void solve_hill_climbing_P(){
+    State_P state;
+    // state = hill_climbing<State, Action>(state, 1800);
+    state = simulated_annealing<State_P, Action_P>(state, 1000, 100, 1800);
+    output(state.P, state.B);
+}
 
 int main(int argc, char *argv[]) {
     cin.tie(0);
@@ -483,5 +557,6 @@ int main(int argc, char *argv[]) {
     cerr << setprecision(30) << fixed;
     input();
     // solve_use_all();
-    solve_hill_climbing();
+    // solve_hill_climbing();
+    solve_hill_climbing_P();
 }
