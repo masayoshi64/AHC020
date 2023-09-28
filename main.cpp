@@ -478,13 +478,13 @@ struct Action_P{
 };
 
 struct State_P{
-    ll max_diff = 50;
+    ll max_diff = 100;
     ll score = 0;
     vl V, B, P;
-    mat<ll> covering;
 
     // for rollback
     ll id, val, pre_score;
+    vl B_rollback;
 
     State_P(){
         V.resize(N);
@@ -522,15 +522,30 @@ struct State_P{
         // 状態を変更
         P[id] += action.diff;
         chmax(P[id], 0ll), chmin(P[id], max_P);
-
-        // スコアの更新
-        if(is_covered()){
-            score += P[id] * P[id] - val * val;
+        if(id != 0 && ((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
+            V[id] ^= 1;
+            bool connected;
+            swap(B, B_rollback);
+            tie(connected, B) = spanning_tree(V);
+            if(connected && is_covered()){
+                score = calc_cost(P, B);
+            }else{
+                score = INF;
+            }
         }else{
-            score = INF;
+            // スコアの更新
+            if(is_covered()){
+                score += P[id] * P[id] - val * val;
+            }else{
+                score = INF;
+            }
         }
     }
     void rollback(){
+        if(id != 0 && ((val > 0 && P[id] == 0) || (val == 0 && P[id] > 0))){
+            V[id] ^= 1;
+            swap(B, B_rollback);
+        }
         P[id] = val;
         score = pre_score;
     }
@@ -555,8 +570,8 @@ void solve_hill_climbing(){
 
 void solve_hill_climbing_P(){
     State_P state;
-    state = hill_climbing<State_P, Action_P>(state, 1800, true);
-    // state = simulated_annealing<State_P, Action_P>(state, 1000, 100, 1800, true);
+    // state = hill_climbing<State_P, Action_P>(state, 1800, true);
+    state = simulated_annealing<State_P, Action_P>(state, 1000000, 1000, 1800, true);
     output(state.P, state.B);
 }
 
