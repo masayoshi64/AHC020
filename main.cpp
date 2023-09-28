@@ -235,7 +235,7 @@ struct UnionFind {
  */
 
 template<typename State, typename Action>
-State simulated_annealing(State state, double start_temp, double end_temp, double time_limit) {
+State simulated_annealing(State state, double start_temp, double end_temp, double time_limit, bool minimize=false) {
     Timer timer;
     timer.start();
     rep(t, 1e9) {
@@ -247,7 +247,9 @@ State simulated_annealing(State state, double start_temp, double end_temp, doubl
         Action action = state.generate_action();
         state.step(action);
         double new_score = state.score;
-        double prob = exp((new_score - score) / temp);
+        double diff = new_score - score;
+        if(minimize) diff *= -1;
+        double prob = exp(diff / temp);
         if (prob < (double) xor64(10000000) / 10000000) {
             state.rollback();
         }
@@ -257,7 +259,7 @@ State simulated_annealing(State state, double start_temp, double end_temp, doubl
 }
 
 template<typename State, typename Action>
-State hill_climbing(State state, double time_limit){
+State hill_climbing(State state, double time_limit, bool minimize=false){
     Timer timer;
     timer.start();
     rep(t, 1e9) {
@@ -268,7 +270,9 @@ State hill_climbing(State state, double time_limit){
         Action action = state.generate_action();
         state.step(action);
         double new_score = state.score;
-        if (new_score < score) {
+        double diff = new_score - score;
+        if(minimize) diff *= -1;
+        if (diff < 0) {
             state.rollback();
         }
         if(t % 100 == 0) cerr << t << ": " << state.score << endl;
@@ -316,7 +320,7 @@ void input(){
     }
 }
 
-ll calc_score(vl P, vl B){
+ll calc_cost(vl& P, vl& B){
     ll S = 0;
     rep(i, N){
         S += P[i] * P[i];
@@ -324,6 +328,11 @@ ll calc_score(vl P, vl B){
     rep(i, M){
         S += B[i] * w[i];
     }
+    return S;
+}
+
+ll calc_score(vl& P, vl& B){
+    ll S = calc_cost(P, B);
     return 1e6 * (1 + 1e8 / (S + 1e7));
 }
 
@@ -333,6 +342,7 @@ void output(vl P, vl B){
     rep(i, M) cout << B[i] << ' ';
     cout << endl;
     cerr << "Score = " << calc_score(P, B) << endl;
+    cerr << "Cost = " << calc_cost(P, B) << endl;
 }
 
 pair<bool, vl> spanning_tree(vl V){
@@ -484,10 +494,10 @@ struct State_P{
         bool connected;
         tie(connected, B) = spanning_tree(V);
         rep(i, N){
-            score -= P[i] * P[i];
+            score += P[i] * P[i];
         }
         rep(i, M){
-            score -= B[i] * w[i];
+            score += B[i] * w[i];
         }
     }
     Action_P generate_action(){
@@ -515,9 +525,9 @@ struct State_P{
 
         // スコアの更新
         if(is_covered()){
-            score -= P[id] * P[id] - val * val;
+            score += P[id] * P[id] - val * val;
         }else{
-            score = -INF;
+            score = INF;
         }
     }
     void rollback(){
@@ -545,8 +555,8 @@ void solve_hill_climbing(){
 
 void solve_hill_climbing_P(){
     State_P state;
-    // state = hill_climbing<State, Action>(state, 1800);
-    state = simulated_annealing<State_P, Action_P>(state, 1000, 100, 1800);
+    state = hill_climbing<State_P, Action_P>(state, 1800, true);
+    // state = simulated_annealing<State_P, Action_P>(state, 1000, 100, 1800, true);
     output(state.P, state.B);
 }
 
