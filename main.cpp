@@ -490,7 +490,7 @@ struct Action_P{
 struct State_P{
     ll max_diff = 100;
     ll score = 0;
-    vl V, B, P, cnt;
+    vl V, B, P, cnt, max_covered;
 
     // for rollback
     ll id, val, pre_score;
@@ -502,8 +502,13 @@ struct State_P{
         mat<ll> assignment;
         tie(assignment, P) = assign_greedy(V);
         cnt.resize(K);
+        max_covered.assign(N, -1);
         rep(i, K) rep(j, N){
-            if(dist[i][j] <= P[j]) cnt[i]++;
+            ll r_id = sorted_by_dist[j][i];
+            if(dist[r_id][j] <= P[j]){
+                cnt[r_id]++;
+                chmax(max_covered[j], i);
+            }
         }
         bool connected;
         tie(connected, B) = spanning_tree(V);
@@ -530,15 +535,27 @@ struct State_P{
 
     bool is_covered(ll p, ll p_pre){
         bool covered = true;
-        rep(i, K){
-            int r_id = sorted_by_dist[id][i];
-            if(dist[r_id][id] > p && dist[r_id][id] <= p_pre){
-                cnt[r_id]--;
-            }
-            if(dist[r_id][id] <= p && dist[r_id][id] > p_pre){
+        if(p >= p_pre){
+            rep(i, max_covered[id] + 1, K){
+                int r_id = sorted_by_dist[id][i];
+                if(dist[r_id][id] > p){
+                    break;
+                }
                 cnt[r_id]++;
+                max_covered[id] = i;        
             }
-            if(cnt[r_id] == 0) covered = false;         
+        }else{
+            ll tmp = max_covered[id];
+            max_covered[id] = -1;
+            rrep(i, 0, tmp + 1){
+                int r_id = sorted_by_dist[id][i];
+                if(dist[r_id][id] <= p){
+                    max_covered[id] = i;        
+                    break;
+                }
+                cnt[r_id]--;
+                if(cnt[r_id] == 0) covered = false;
+            }
         }
         return covered;
     }   
