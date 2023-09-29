@@ -285,6 +285,10 @@ ll N, M, K;
 vl x, y, u, v, w, a, b;
 mat<ll> dist, sorted_by_dist;
 
+ll max_diff = 100;
+double start_tmp = 1000000;
+double end_tmp = 1000;
+
 ll ll_sqrt(ll val){
     ll ok = 1e5, ng = 0;
     while(ok - ng > 1){
@@ -488,7 +492,6 @@ struct Action_P{
 };
 
 struct State_P{
-    ll max_diff = 100;
     ll score = 0;
     vl V, B, P, cnt, max_covered;
 
@@ -622,7 +625,7 @@ void solve_hill_climbing(){
 void solve_hill_climbing_P(){
     State_P state;
     // state = hill_climbing<State_P, Action_P>(state, 1800, true);
-    state = simulated_annealing<State_P, Action_P>(state, 1000000, 1000, 1800, true);
+    state = simulated_annealing<State_P, Action_P>(state, start_tmp, end_tmp, 1800, true);
     output(state.P, state.B);
 }
 
@@ -631,6 +634,11 @@ int main(int argc, char *argv[]) {
     ios::sync_with_stdio(0);
     cout << setprecision(30) << fixed;
     cerr << setprecision(30) << fixed;
+    if(argc == 4){
+        max_diff = stod(argv[1]);
+        start_tmp = stod(argv[2]);
+        end_tmp = stod(argv[3]);
+    }
     input();
     // solve_use_all();
     // solve_hill_climbing();
