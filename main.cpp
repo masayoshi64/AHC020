@@ -285,9 +285,9 @@ ll N, M, K;
 vl x, y, u, v, w, a, b;
 mat<ll> dist, sorted_by_dist;
 
-ll max_diff = 100;
-double start_tmp = 1000000;
-double end_tmp = 1000;
+ll max_diff = 405;
+double start_tmp = 2373268;
+double end_tmp = 884;
 
 ll ll_sqrt(ll val){
     ll ok = 1e5, ng = 0;
